@@ -25,8 +25,18 @@ $("ticker").innerHTML = lines.concat(lines).map((l) => `<span>${l}</span>`).join
 
 let turnstileToken = "";
 let widgetId = null;
+let useFallback = false;
 async function initTurnstile() {
   const cfg = await (await fetch("/api/config")).json();
+  if (!cfg.turnstileSitekey) {
+    useFallback = true;
+    $("human-fallback").hidden = false;
+    $("human").addEventListener("change", () => {
+      turnstileToken = $("human").checked ? "ok" : "";
+      refresh();
+    });
+    return;
+  }
   const render = () => {
     widgetId = turnstile.render("#turnstile", {
       sitekey: cfg.turnstileSitekey,
@@ -100,7 +110,8 @@ $("transfer-form").addEventListener("submit", async (e) => {
   modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản <b>${v.fromUser}</b> · ${siteTag(v.fromSite)}` });
   const [{ data }] = await Promise.all([req, sleep(2000)]);
 
-  if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
+  if (useFallback) $("human").checked = false;
+  else if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
   turnstileToken = "";
   refresh();
 

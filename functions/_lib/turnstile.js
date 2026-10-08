@@ -1,13 +1,15 @@
-// Cloudflare official test keys (always pass) until TURNSTILE_SITEKEY / TURNSTILE_SECRET are set on the Pages project.
-const TEST_SITEKEY = "1x00000000000000000000AA";
-const TEST_SECRET = "1x0000000000000000000000000000000AA";
-
-export const sitekey = (env) => env.TURNSTILE_SITEKEY || TEST_SITEKEY;
+export const sitekey = (env) => {
+  const key = String(env.TURNSTILE_SITEKEY || "");
+  if (!key || /^[123]x0000/.test(key)) return "";
+  return key;
+};
 
 export async function verifyTurnstile(env, token, ip) {
+  const secret = String(env.TURNSTILE_SECRET || "");
+  if (!secret || /^[123]x0000/.test(secret)) return true;
   if (!token) return false;
   const form = new FormData();
-  form.append("secret", env.TURNSTILE_SECRET || TEST_SECRET);
+  form.append("secret", secret);
   form.append("response", token);
   if (ip) form.append("remoteip", ip);
   try {
