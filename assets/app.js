@@ -1,245 +1,135 @@
-const WAIT_MS = 120000;
-const POLL_MS = 2000;
 const HISTORY_KEY = "gg88_transfer_history";
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
 
-const guest = (() => {
-  const key = "gg88_guest";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = "user" + Math.floor(10000 + Math.random() * 90000);
-    localStorage.setItem(key, id);
-  }
-  return id;
-})();
+const guest = localStorage.getItem("gg88_guest") || "user" + Math.floor(10000 + Math.random() * 90000);
+localStorage.setItem("gg88_guest", guest);
+$("user-chip").textContent = guest;
 
-const chip = document.getElementById("user-chip");
-if (chip) chip.textContent = guest;
+fillSiteSelect($("from-site"));
+fillSiteSelect($("to-site"), "GG88");
 
 let redirectUrl = "";
-fetch("/domains.json")
-  .then((r) => r.json())
-  .then((dj) => {
-    const host = (location.hostname || "").toLowerCase().replace(/^www\./, "");
-    const entry = dj?.[host] || dj?.["www." + host] || dj?.[location.hostname];
-    const target = entry && (entry.main_url || entry.url || entry.link || (typeof entry === "string" ? entry : ""));
-    if (target) redirectUrl = target;
-  })
-  .catch(() => {});
+fetch("/domains.json").then((r) => r.json()).then((dj) => {
+  const h = location.hostname.toLowerCase().replace(/^www\./, "");
+  const e = dj[h] || dj["www." + h];
+  const t = e && (e.main_url || e.url || (typeof e === "string" ? e : ""));
+  if (t) redirectUrl = t;
+}).catch(() => {});
 
-const tickerLines = [
-  "⚡ duyloi204 vừa nhận 2.000.000 VNĐ",
-  "💎 hoang123 vừa chuyển 100.000 VNĐ",
-  "🔥 ngocanh88 vừa nhận 300.000 VNĐ",
-  "🎁 phong161008 vừa nạp 500.000 VNĐ",
-  "⚡ GG88 vừa duyệt chuyển 1.000.000 VNĐ",
-];
-const ticker = document.getElementById("ticker");
-if (ticker) {
-  const html = tickerLines.concat(tickerLines).map((line) => `<span>${line}</span>`).join("");
-  ticker.innerHTML = html;
+const lines = ["⚡ <b>duyloi204</b> vừa nhận 2.000.000 VNĐ", "💎 <b>hoang123</b> vừa chuyển 100.000 VNĐ",
+  "🔥 <b>ngocanh88</b> vừa nhận 300.000 VNĐ", "🎁 <b>phong161008</b> vừa nạp 500.000 VNĐ",
+  "⚡ <b>tuan9x</b> vừa chuyển 1.000.000 VNĐ sang " + siteTag("GG88")];
+$("ticker").innerHTML = lines.concat(lines).map((l) => `<span>${l}</span>`).join("");
+
+let turnstileToken = "";
+let widgetId = null;
+async function initTurnstile() {
+  const cfg = await (await fetch("/api/config")).json();
+  const render = () => {
+    widgetId = turnstile.render("#turnstile", {
+      sitekey: cfg.turnstileSitekey,
+      language: "vi",
+      callback: (t) => { turnstileToken = t; refresh(); },
+      "expired-callback": () => { turnstileToken = ""; refresh(); },
+      "error-callback": () => { turnstileToken = ""; refresh(); },
+    });
+  };
+  if (window.turnstile) render();
+  else { const iv = setInterval(() => { if (window.turnstile) { clearInterval(iv); render(); } }, 200); }
 }
+initTurnstile();
 
-const form = document.getElementById("transfer-form");
-const submitBtn = document.getElementById("btn-submit");
-const human = document.getElementById("human");
-const formError = document.getElementById("form-error");
-
-function formReady() {
-  const fromUser = document.getElementById("from-user").value.trim();
-  const toUser = document.getElementById("to-user").value.trim();
-  const fromSite = document.getElementById("from-site").value;
-  const amount = Number(document.getElementById("amount").value);
-  return fromUser && toUser && fromSite && amount > 0 && human.checked;
+function values() {
+  return {
+    fromUser: $("from-user").value.trim(), fromSite: $("from-site").value,
+    toUser: $("to-user").value.trim(), toSite: $("to-site").value,
+    amount: Number($("amount").value),
+  };
 }
-
-function refreshSubmit() {
-  const ok = formReady();
-  submitBtn.disabled = !ok;
-  submitBtn.classList.toggle("ready", ok);
+function ready() {
+  const v = values();
+  return v.fromUser && v.toUser && v.fromSite && v.toSite && v.amount > 0 && turnstileToken;
 }
-
-form.addEventListener("input", refreshSubmit);
-form.addEventListener("change", refreshSubmit);
-
-function readHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
-  catch { return []; }
+function refresh() {
+  const ok = !!ready();
+  $("btn-submit").disabled = !ok;
+  $("btn-submit").classList.toggle("ready", ok);
 }
-function writeHistory(items) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 30)));
+$("transfer-form").addEventListener("input", refresh);
+$("transfer-form").addEventListener("change", refresh);
+
+function modal({ phase, title, text, actions = [] }) {
+  $("modal").className = "modal " + phase;
+  $("modal-spinner").style.display = phase === "loading" ? "block" : "none";
+  $("modal-icon").textContent = phase === "ok" ? "🎉" : phase === "bad" ? "⚠️" : "";
+  $("modal-title").textContent = title;
+  $("modal-text").innerHTML = text || "";
+  $("modal-actions").innerHTML = "";
+  for (const a of actions) {
+    const el = document.createElement(a.href ? "a" : "button");
+    el.className = a.cls || "btn-ghost";
+    el.textContent = a.label;
+    if (a.href) { el.href = a.href; el.target = "_blank"; el.rel = "noopener"; }
+    else el.onclick = a.onClick;
+    $("modal-actions").appendChild(el);
+  }
+  $("overlay").classList.add("show");
 }
+const closeModal = () => $("overlay").classList.remove("show");
+
 function remember(item) {
-  const items = readHistory().filter((x) => x.id !== item.id);
-  items.unshift(item);
-  writeHistory(items);
+  const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  list.unshift(item);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 30)));
 }
 
-const overlay = document.getElementById("overlay");
-const modal = document.getElementById("modal");
-const modalTitle = document.getElementById("modal-title");
-const modalText = document.getElementById("modal-text");
-const modalCount = document.getElementById("modal-count");
-const modalActions = document.getElementById("modal-actions");
-let pollTimer = null;
+$("transfer-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("form-error").style.display = "none";
+  if (!ready()) return;
+  const v = values();
+  const req = fetch("/api/transfers", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...v, turnstileToken }),
+  }).then(async (r) => ({ status: r.status, data: await r.json() })).catch(() => ({ status: 0, data: { ok: false, message: "Mất kết nối, thử lại." } }));
 
-function showModal({ title, text, count = "", tone = "", actions = [] }) {
-  modal.className = "modal" + (tone ? " " + tone : "");
-  modalTitle.textContent = title;
-  modalText.textContent = text;
-  modalCount.textContent = count;
-  modalActions.innerHTML = "";
-  for (const action of actions) {
-    const el = document.createElement(action.href ? "a" : "button");
-    el.className = action.className || "btn-ghost";
-    el.textContent = action.label;
-    if (action.href) {
-      el.href = action.href;
-      el.target = "_blank";
-      el.rel = "noopener noreferrer";
-    } else {
-      el.type = "button";
-      el.addEventListener("click", action.onClick);
-    }
-    modalActions.appendChild(el);
-  }
-  overlay.classList.add("show");
-}
+  modal({ phase: "loading", title: "Đang xử lý giao dịch...", text: "Vui lòng không tắt trang." });
+  await sleep(1500);
+  modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản <b>${v.fromUser}</b> · ${siteTag(v.fromSite)}` });
+  const [{ data }] = await Promise.all([req, sleep(2000)]);
 
-function closeModal() {
-  overlay.classList.remove("show");
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-}
+  if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
+  turnstileToken = "";
+  refresh();
 
-function fmt(n) {
-  return Number(n || 0).toLocaleString("vi-VN");
-}
-
-function statusLabel(status) {
-  if (status === "approved") return "Đã duyệt";
-  if (status === "rejected") return "Không duyệt";
-  if (status === "timeout") return "Hết giờ duyệt";
-  return "Chờ duyệt";
-}
-
-async function pollUntil(id, started) {
-  const tick = async () => {
-    const left = WAIT_MS - (Date.now() - started);
-    if (left <= 0) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-      const items = readHistory();
-      const found = items.find((x) => x.id === id);
-      if (found && found.status === "pending") {
-        found.status = "timeout";
-        writeHistory(items);
-      }
-      showModal({
-        tone: "bad",
-        title: "Chuyển điểm thất bại",
-        text: "Admin không bấm duyệt. Điểm không được chuyển.",
-        actions: [{ label: "Đóng", onClick: closeModal }],
-      });
-      return;
-    }
-    modalCount.textContent = "Còn " + Math.ceil(left / 1000) + " giây. Không duyệt thì giao dịch lỗi.";
-    try {
-      const res = await fetch("/api/transfers/" + id);
-      const data = await res.json();
-      if (!data.ok) return;
-      if (data.status === "pending") return;
-      clearInterval(pollTimer);
-      pollTimer = null;
-      remember({ ...data, status: data.status });
-      if (data.status === "approved") {
-        const actions = [{ label: "Đóng", className: "btn-ghost", onClick: closeModal }];
-        if (redirectUrl) actions.unshift({ label: "Vào GG88", className: "btn-go", href: redirectUrl });
-        showModal({
-          tone: "ok",
-          title: "Chuyển điểm thành công",
-          text: `${data.fromUser} (${data.fromSite}) → ${data.toUser} (GG88): ${fmt(data.amount)} VNĐ.`,
-          actions,
-        });
-      } else {
-        showModal({
-          tone: "bad",
-          title: "Chuyển điểm thất bại",
-          text: data.message || "Admin không duyệt. Điểm không được chuyển.",
-          actions: [{ label: "Đóng", onClick: closeModal }],
-        });
-      }
-    } catch { /* giữ trạng thái chờ */ }
-  };
-  await tick();
-  pollTimer = setInterval(tick, POLL_MS);
-}
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  formError.style.display = "none";
-  if (!formReady()) return;
-  submitBtn.disabled = true;
-  const payload = {
-    fromUser: document.getElementById("from-user").value.trim(),
-    fromSite: document.getElementById("from-site").value,
-    toUser: document.getElementById("to-user").value.trim(),
-    toSite: "GG88",
-    amount: Number(document.getElementById("amount").value),
-  };
-  try {
-    const res = await fetch("/api/transfers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.message || "Không gửi được lệnh.");
-    remember(data);
-    showModal({
-      title: "Đang chờ admin duyệt",
-      text: "Lệnh đã gửi. Admin bấm duyệt thì điểm mới chuyển. Không bấm thì giao dịch báo lỗi.",
-    });
-    pollUntil(data.id, Date.now());
-  } catch (err) {
-    formError.textContent = err.message || "Không gửi được lệnh.";
-    formError.style.display = "block";
-  } finally {
-    refreshSubmit();
-  }
-});
-
-const historyPanel = document.getElementById("history-panel");
-const historyList = document.getElementById("history-list");
-
-async function renderHistory() {
-  const items = readHistory();
-  if (!items.length) {
-    historyList.innerHTML = '<p class="empty">Chưa có lệnh chuyển nào trên trình duyệt này.</p>';
+  if (!data.ok) {
+    modal({ phase: "bad", title: "Giao dịch lỗi", text: data.message, actions: [{ label: "Đóng", onClick: closeModal }] });
     return;
   }
-  const fresh = [];
-  for (const item of items) {
-    if (item.status === "pending") {
-      try {
-        const data = await (await fetch("/api/transfers/" + item.id)).json();
-        if (data.ok) fresh.push({ ...item, ...data });
-        else fresh.push(item);
-      } catch { fresh.push(item); }
-    } else fresh.push(item);
+  remember({ ...v, result: data.result, at: new Date().toISOString() });
+  if (data.result === "success") {
+    const actions = [{ label: "Đóng", onClick: closeModal }];
+    if (redirectUrl) actions.unshift({ label: "Vào GG88", cls: "btn-go", href: redirectUrl });
+    modal({
+      phase: "ok", title: "Chúc mừng, chuyển điểm thành công!",
+      text: `<b>${fmt(v.amount)} VNĐ</b><br>${v.fromUser} (${siteTag(v.fromSite)}) → ${v.toUser} (${siteTag(v.toSite)})`,
+      actions,
+    });
+  } else {
+    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản <b>${v.fromUser}</b> chưa đủ điều kiện chuyển điểm.`, actions: [{ label: "Đóng", onClick: closeModal }] });
   }
-  writeHistory(fresh);
-  historyList.innerHTML = fresh.map((item) => `
-    <div class="hist-item">
-      <strong>${item.fromUser} (${item.fromSite}) → ${item.toUser} (GG88)</strong>
-      <div>${fmt(item.amount)} VNĐ</div>
-      <span class="tag ${item.status}">${statusLabel(item.status)}</span>
-    </div>
-  `).join("");
-}
+});
 
-document.getElementById("btn-history").addEventListener("click", () => {
-  historyPanel.classList.add("show");
-  renderHistory();
-});
-document.getElementById("btn-close-history").addEventListener("click", () => {
-  historyPanel.classList.remove("show");
-});
+$("btn-history").onclick = () => {
+  const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  $("history-list").innerHTML = list.length ? list.map((i) => `
+    <div class="hist-item">
+      <strong>${i.fromUser} (${siteTag(i.fromSite)}) → ${i.toUser} (${siteTag(i.toSite)})</strong>
+      <div>${fmt(i.amount)} VNĐ</div>
+      <span class="tag ${i.result === "success" ? "approved" : "rejected"}">${i.result === "success" ? "Thành công" : "Chưa đủ điều kiện"}</span>
+    </div>`).join("") : '<p class="empty">Chưa có giao dịch nào.</p>';
+  $("history-panel").classList.add("show");
+};
+$("btn-close-history").onclick = () => $("history-panel").classList.remove("show");

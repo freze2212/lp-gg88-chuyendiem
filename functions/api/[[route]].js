@@ -1,172 +1,83 @@
-// Pages Function: lệnh chuyển điểm GG88. Chỉ approved khi admin bấm duyệt.
+import { SITES, STATUSES, INELIGIBLE_MSG, json, uid, norm, readBody, loadDb, saveDb, isAdmin } from "../_lib/store.js";
+import { sitekey, verifyTurnstile } from "../_lib/turnstile.js";
 
-const KV_KEY = "transfers_gg88";
-const SITES = ["GG88", "MM88", "LLWIN", "XX88"];
-const MAX_ITEMS = 300;
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=UTF-8",
-      "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    },
-  });
-}
-
-function uid(bytes = 8) {
-  const a = new Uint8Array(bytes);
-  crypto.getRandomValues(a);
-  return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function findKv(env) {
-  if (env?.XOAMA_KV?.get && env.XOAMA_KV.put) return env.XOAMA_KV;
-  return null;
-}
-
-function blankDb() {
-  return {
-    admin: { username: "admin", password: "admin123" },
-    sessions: {},
-    items: [],
-  };
-}
-
-async function loadDb(kv) {
-  try {
-    const raw = await kv.get(KV_KEY);
-    if (!raw) return blankDb();
-    const parsed = JSON.parse(raw);
-    return {
-      admin: parsed.admin || blankDb().admin,
-      sessions: parsed.sessions || {},
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-    };
-  } catch {
-    return blankDb();
-  }
-}
-
-async function saveDb(kv, db) {
-  const now = Date.now();
-  db.sessions = Object.fromEntries(
-    Object.entries(db.sessions || {}).filter(([, s]) => s && s.exp > now)
-  );
-  db.items = (db.items || []).slice(0, MAX_ITEMS);
-  await kv.put(KV_KEY, JSON.stringify(db));
-}
-
-function bearer(request) {
-  return (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-}
-
-function isAdmin(db, request) {
-  const token = bearer(request);
-  const session = token && db.sessions?.[token];
-  return !!(session && session.exp > Date.now());
-}
-
-function publicItem(item) {
-  return {
-    id: item.id,
-    status: item.status,
-    amount: item.amount,
-    fromUser: item.fromUser,
-    fromSite: item.fromSite,
-    toUser: item.toUser,
-    toSite: item.toSite,
-    createdAt: item.createdAt,
-    decidedAt: item.decidedAt || null,
-    message:
-      item.status === "approved"
-        ? "Chuyển điểm thành công."
-        : item.status === "rejected"
-          ? "Admin không duyệt. Chuyển điểm thất bại."
-          : "Đang chờ admin duyệt.",
-  };
-}
-
-export async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const path = url.pathname.replace(/\/+$/, "") || "/";
-
-  if (request.method === "OPTIONS") return json({ ok: true });
-
-  const kv = findKv(env);
+export async function onRequest({ request, env }) {
+  const path = new URL(request.url).pathname.replace(/\/+$/, "");
+  const method = request.method;
+  const kv = env.XOAMA_KV;
   if (!kv) return json({ ok: false, message: "KV chưa được gắn." }, 500);
+
+  if (path === "/api/config") return json({ ok: true, turnstileSitekey: sitekey(env), sites: SITES });
 
   const db = await loadDb(kv);
 
-  if (path === "/api/login" && request.method === "POST") {
-    let body = {};
-    try { body = await request.json(); } catch { body = {}; }
-    const username = String(body.username || "").trim();
-    const password = String(body.password || "");
-    if (username !== db.admin.username || password !== db.admin.password) {
+  if (path === "/api/login" && method === "POST") {
+    const b = await readBody(request);
+    if (String(b.username || "").trim() !== db.admin.username || String(b.password || "") !== db.admin.password) {
       return json({ ok: false, message: "Sai tài khoản hoặc mật khẩu admin." }, 401);
     }
     const token = uid(24);
-    db.sessions[token] = { exp: Date.now() + 12 * 60 * 60 * 1000 };
+    db.sessions[token] = { exp: Date.now() + 12 * 3600 * 1000 };
     await saveDb(kv, db);
-    return json({ ok: true, token, username });
+    return json({ ok: true, token });
   }
 
-  if (path === "/api/transfers" && request.method === "POST") {
-    let body = {};
-    try { body = await request.json(); } catch { body = {}; }
-    const fromUser = String(body.fromUser || "").trim().slice(0, 40);
-    const toUser = String(body.toUser || "").trim().slice(0, 40);
-    const fromSite = String(body.fromSite || "").trim();
-    const toSite = "GG88";
-    const amount = Math.floor(Number(body.amount));
-    if (!fromUser || !toUser) return json({ ok: false, message: "Nhập đủ tên tài khoản nguồn và tài khoản đến." }, 400);
-    if (!SITES.includes(fromSite)) return json({ ok: false, message: "Chọn trang nguồn." }, 400);
-    if (!Number.isFinite(amount) || amount <= 0) return json({ ok: false, message: "Số điểm chuyển phải lớn hơn 0." }, 400);
+  if (path === "/api/transfers" && method === "POST") {
+    const b = await readBody(request);
+    const fromUser = String(b.fromUser || "").trim().slice(0, 40);
+    const toUser = String(b.toUser || "").trim().slice(0, 40);
+    const fromSite = String(b.fromSite || "");
+    const toSite = String(b.toSite || "");
+    const amount = Math.floor(Number(b.amount));
+    if (!fromUser || !toUser) return json({ ok: false, message: "Nhập đủ tài khoản nguồn và tài khoản đến." }, 400);
+    if (!SITES.includes(fromSite) || !SITES.includes(toSite)) return json({ ok: false, message: "Chọn trang cho cả hai tài khoản." }, 400);
+    if (!(amount > 0)) return json({ ok: false, message: "Số điểm chuyển phải lớn hơn 0." }, 400);
+    const human = await verifyTurnstile(env, b.turnstileToken, request.headers.get("CF-Connecting-IP"));
+    if (!human) return json({ ok: false, message: "Xác thực bảo mật thất bại, thử lại." }, 403);
 
-    const item = {
-      id: uid(8),
-      fromUser,
-      fromSite,
-      toUser,
-      toSite,
-      amount,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      decidedAt: null,
-    };
-    db.items.unshift(item);
+    const acc = db.accounts.find((a) => norm(a.username) === norm(fromUser));
+    const result = acc && acc.status === "success" ? "success" : "ineligible";
+    db.transfers.unshift({ id: uid(8), fromUser, fromSite, toUser, toSite, amount, result, createdAt: new Date().toISOString() });
     await saveDb(kv, db);
-    return json({ ok: true, ...publicItem(item) });
+    return json({
+      ok: true,
+      result,
+      message: result === "success" ? "Chúc mừng, chuyển điểm thành công!" : INELIGIBLE_MSG,
+      fromUser, fromSite, toUser, toSite, amount,
+    });
   }
 
-  const one = path.match(/^\/api\/transfers\/([a-f0-9]+)$/);
-  if (one && request.method === "GET") {
-    const item = db.items.find((x) => x.id === one[1]);
-    if (!item) return json({ ok: false, message: "Không tìm thấy lệnh chuyển." }, 404);
-    return json({ ok: true, ...publicItem(item) });
-  }
+  if (!path.startsWith("/api/")) return json({ ok: false, message: "Không tìm thấy API." }, 404);
+  if (!isAdmin(db, request)) return json({ ok: false, message: "Cần đăng nhập admin." }, 401);
 
-  const decide = path.match(/^\/api\/transfers\/([a-f0-9]+)\/(approve|reject)$/);
-  if (decide && request.method === "POST") {
-    if (!isAdmin(db, request)) return json({ ok: false, message: "Cần đăng nhập admin." }, 401);
-    const item = db.items.find((x) => x.id === decide[1]);
-    if (!item) return json({ ok: false, message: "Không tìm thấy lệnh chuyển." }, 404);
-    if (item.status !== "pending") return json({ ok: false, message: "Lệnh này đã được xử lý." }, 400);
-    item.status = decide[2] === "approve" ? "approved" : "rejected";
-    item.decidedAt = new Date().toISOString();
+  if (path === "/api/accounts" && method === "GET") return json({ ok: true, accounts: db.accounts });
+
+  if (path === "/api/accounts" && method === "POST") {
+    const b = await readBody(request);
+    const username = String(b.username || "").trim().slice(0, 40);
+    const status = STATUSES.includes(b.status) ? b.status : "success";
+    if (!username) return json({ ok: false, message: "Nhập tên tài khoản." }, 400);
+    const found = db.accounts.find((a) => norm(a.username) === norm(username));
+    if (found) found.status = status;
+    else db.accounts.unshift({ id: uid(6), username, status, createdAt: new Date().toISOString() });
     await saveDb(kv, db);
-    return json({ ok: true, ...publicItem(item) });
+    return json({ ok: true, accounts: db.accounts });
   }
 
-  if (path === "/api/transfers" && request.method === "GET") {
-    if (!isAdmin(db, request)) return json({ ok: false, message: "Cần đăng nhập admin." }, 401);
-    return json({ ok: true, items: db.items.map(publicItem) });
+  const m = path.match(/^\/api\/accounts\/([a-f0-9]+)\/(status|delete)$/);
+  if (m && method === "POST") {
+    const acc = db.accounts.find((a) => a.id === m[1]);
+    if (!acc) return json({ ok: false, message: "Không tìm thấy tài khoản." }, 404);
+    if (m[2] === "delete") db.accounts = db.accounts.filter((a) => a.id !== acc.id);
+    else {
+      const b = await readBody(request);
+      acc.status = STATUSES.includes(b.status) ? b.status : acc.status;
+    }
+    await saveDb(kv, db);
+    return json({ ok: true, accounts: db.accounts });
   }
+
+  if (path === "/api/transfers" && method === "GET") return json({ ok: true, transfers: db.transfers });
 
   return json({ ok: false, message: "Không tìm thấy API." }, 404);
 }

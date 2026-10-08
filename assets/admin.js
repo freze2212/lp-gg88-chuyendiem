@@ -1,115 +1,112 @@
 const TOKEN_KEY = "gg88_admin_token";
-const loginStage = document.getElementById("login-stage");
-const boardStage = document.getElementById("board-stage");
-const loginForm = document.getElementById("login-form");
-const loginError = document.getElementById("login-error");
-const rows = document.getElementById("rows");
-const logoutBtn = document.getElementById("btn-logout");
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
+const when = (iso) => (iso ? new Date(iso).toLocaleString("vi-VN") : "");
+const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const token = () => sessionStorage.getItem(TOKEN_KEY) || "";
 
-function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
-
-function showLogin() {
-  loginStage.hidden = false;
-  boardStage.hidden = true;
-  logoutBtn.hidden = true;
-}
-function showBoard() {
-  loginStage.hidden = true;
-  boardStage.hidden = false;
-  logoutBtn.hidden = false;
+function show(board) {
+  $("login-stage").hidden = board;
+  $("board-stage").hidden = !board;
+  $("btn-logout").hidden = !board;
 }
 
-function fmt(n) { return Number(n || 0).toLocaleString("vi-VN"); }
-function when(iso) {
-  if (!iso) return "";
-  try { return new Date(iso).toLocaleString("vi-VN"); } catch { return iso; }
-}
-function statusLabel(status) {
-  if (status === "approved") return "Đã duyệt";
-  if (status === "rejected") return "Từ chối";
-  return "Chờ duyệt";
-}
-
-async function api(path, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (token()) headers.Authorization = "Bearer " + token();
-  const res = await fetch(path, { ...options, headers });
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    sessionStorage.removeItem(TOKEN_KEY);
-    showLogin();
-    throw new Error(data.message || "Hết phiên admin.");
-  }
-  if (!res.ok || data.ok === false) throw new Error(data.message || "Lỗi API.");
-  return data;
+async function api(path, body) {
+  const opts = { method: body ? "POST" : "GET", headers: { Authorization: "Bearer " + token() } };
+  if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+  const r = await fetch(path, opts);
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem(TOKEN_KEY); show(false); throw new Error(d.message || "Hết phiên admin."); }
+  if (!r.ok || d.ok === false) throw new Error(d.message || "Lỗi API.");
+  return d;
 }
 
-async function loadRows() {
-  const data = await api("/api/transfers");
-  if (!data.items.length) {
-    rows.innerHTML = '<tr><td colspan="6">Chưa có lệnh nào.</td></tr>';
-    return;
-  }
-  rows.innerHTML = data.items.map((item) => `
-    <tr>
-      <td>${when(item.createdAt)}</td>
-      <td>${item.fromUser}<br><span style="color:#6b7280">${item.fromSite}</span></td>
-      <td>${item.toUser}<br><span style="color:#6b7280">GG88</span></td>
-      <td>${fmt(item.amount)}</td>
-      <td><span class="tag ${item.status}">${statusLabel(item.status)}</span></td>
-      <td>${item.status === "pending" ? `
-        <div class="actions">
-          <button class="btn-ok" data-act="approve" data-id="${item.id}">Duyệt</button>
-          <button class="btn-no" data-act="reject" data-id="${item.id}">Từ chối</button>
-        </div>` : ""}</td>
-    </tr>
-  `).join("");
+function statusSelect(acc) {
+  return `<select class="status-select" data-id="${acc.id}" style="color:${acc.status === "success" ? "#15803d" : "#dc2626"}">
+    <option value="success" ${acc.status === "success" ? "selected" : ""}>Thành công</option>
+    <option value="ineligible" ${acc.status === "ineligible" ? "selected" : ""}>Chưa đủ điều kiện</option>
+  </select>`;
 }
 
-rows.addEventListener("click", async (event) => {
-  const btn = event.target.closest("button[data-act]");
-  if (!btn) return;
-  btn.disabled = true;
-  try {
-    await api(`/api/transfers/${btn.dataset.id}/${btn.dataset.act}`, { method: "POST" });
-    await loadRows();
-  } catch (err) {
-    alert(err.message);
-    btn.disabled = false;
-  }
+async function loadAccounts() {
+  const d = await api("/api/accounts");
+  $("acc-rows").innerHTML = d.accounts.length
+    ? d.accounts.map((a) => `<tr>
+        <td><b>${esc(a.username)}</b></td>
+        <td>${statusSelect(a)}</td>
+        <td>${when(a.createdAt)}</td>
+        <td><button class="btn-no" data-del="${a.id}">Xoá</button></td>
+      </tr>`).join("")
+    : '<tr><td colspan="4">Chưa có tài khoản. Thêm tài khoản ở trên.</td></tr>';
+}
+
+async function loadTransfers() {
+  const d = await api("/api/transfers");
+  $("tx-rows").innerHTML = d.transfers.length
+    ? d.transfers.map((t) => `<tr>
+        <td>${when(t.createdAt)}</td>
+        <td>${esc(t.fromUser)}<br>${siteTag(t.fromSite)}</td>
+        <td>${esc(t.toUser)}<br>${siteTag(t.toSite)}</td>
+        <td>${fmt(t.amount)}</td>
+        <td><span class="tag ${t.result === "success" ? "approved" : "rejected"}">${t.result === "success" ? "Thành công" : "Chưa đủ điều kiện"}</span></td>
+      </tr>`).join("")
+    : '<tr><td colspan="5">Chưa có giao dịch.</td></tr>';
+}
+
+$("acc-rows").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-id]");
+  if (!sel) return;
+  sel.style.color = sel.value === "success" ? "#15803d" : "#dc2626";
+  try { await api(`/api/accounts/${sel.dataset.id}/status`, { status: sel.value }); }
+  catch (err) { alert(err.message); }
 });
 
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  loginError.textContent = "";
+$("acc-rows").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-del]");
+  if (!btn) return;
+  try { await api(`/api/accounts/${btn.dataset.del}/delete`, {}); await loadAccounts(); }
+  catch (err) { alert(err.message); }
+});
+
+$("add-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = $("new-user").value.trim();
+  if (!username) return;
   try {
-    const res = await fetch("/api/login", {
+    await api("/api/accounts", { username, status: $("new-status").value });
+    $("new-user").value = "";
+    await loadAccounts();
+  } catch (err) { alert(err.message); }
+});
+
+document.querySelectorAll(".tabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === btn));
+    const accounts = btn.dataset.tab === "accounts";
+    $("tab-accounts").hidden = !accounts;
+    $("tab-transfers").hidden = accounts;
+    if (!accounts) loadTransfers().catch((err) => alert(err.message));
+  });
+});
+
+$("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("login-error").textContent = "";
+  try {
+    const r = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: document.getElementById("username").value.trim(),
-        password: document.getElementById("password").value,
-      }),
+      body: JSON.stringify({ username: $("username").value.trim(), password: $("password").value }),
     });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.message || "Đăng nhập thất bại.");
-    sessionStorage.setItem(TOKEN_KEY, data.token);
-    showBoard();
-    await loadRows();
-  } catch (err) {
-    loginError.textContent = err.message;
-  }
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.message || "Đăng nhập thất bại.");
+    sessionStorage.setItem(TOKEN_KEY, d.token);
+    show(true);
+    await loadAccounts();
+  } catch (err) { $("login-error").textContent = err.message; }
 });
 
-logoutBtn.addEventListener("click", () => {
-  sessionStorage.removeItem(TOKEN_KEY);
-  showLogin();
-});
+$("btn-logout").addEventListener("click", () => { sessionStorage.removeItem(TOKEN_KEY); show(false); });
 
-if (token()) {
-  showBoard();
-  loadRows().catch(() => showLogin());
-  setInterval(() => { if (token()) loadRows().catch(() => {}); }, 3000);
-} else {
-  showLogin();
-}
+if (token()) { show(true); loadAccounts().catch(() => show(false)); }
+else show(false);
