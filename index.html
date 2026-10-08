@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hệ Thống Chuyển Điểm GG88</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/app.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%231d4ed8'/%3E%3Cpath d='M36 8 16 36h14l-2 20 20-28H34z' fill='white'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <span class="brand-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h7l-1 8 10-12h-7l0-8z" fill="white"/></svg>
+      </span>
+      <span>
+        <div class="brand-name">Hệ Thống Chuyển Điểm</div>
+        <div class="brand-sub">Secure Gateway v3.0</div>
+      </span>
+    </a>
+    <div class="top-actions">
+      <div class="user-chip" title="Phiên người dùng">
+        <i class="dot"></i>
+        <span id="user-chip">user</span>
+      </div>
+      <button type="button" class="btn-history" id="btn-history">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        Lịch sử
+      </button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <form class="card" id="transfer-form" autocomplete="off">
+      <div class="wordmark">GG88</div>
+      <h1>XỬ LÝ CHUYỂN ĐIỂM GG88</h1>
+      <p class="lead">Nhập chính xác thông tin tài khoản và chọn trang</p>
+
+      <div class="field">
+        <label>Tài khoản nguồn</label>
+        <div class="row">
+          <input class="input" id="from-user" name="fromUser" type="text" placeholder="Tên tài khoản" maxlength="40" required />
+          <select class="select" id="from-site" name="fromSite" required>
+            <option value="">Chọn trang</option>
+            <option>GG88</option>
+            <option>MM88</option>
+            <option>LLWIN</option>
+            <option>XX88</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Tài khoản đến</label>
+        <div class="row">
+          <input class="input" id="to-user" name="toUser" type="text" placeholder="Tên tài khoản" maxlength="40" required />
+          <select class="select" id="to-site" disabled>
+            <option selected>GG88</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="amount">Số điểm chuyển (VNĐ)</label>
+        <div class="amount-wrap">
+          <input class="input" id="amount" name="amount" type="number" min="1" step="1" value="0" required />
+          <span class="vnd">VNĐ</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Xác thực bảo mật</label>
+        <div class="human">
+          <label>
+            <input id="human" type="checkbox" />
+            Verify you are human
+          </label>
+          <span class="cf-mark">CLOUDFLARE</span>
+        </div>
+      </div>
+
+      <button class="submit" id="btn-submit" type="submit" disabled>Xác nhận chuyển</button>
+      <div class="form-error" id="form-error"></div>
+    </form>
+  </main>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track" id="ticker"></div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal" id="modal">
+      <h2 id="modal-title">Đang chờ duyệt</h2>
+      <p id="modal-text">Lệnh chuyển điểm đã gửi. Chỉ khi admin bấm duyệt thì điểm mới được chuyển.</p>
+      <div class="count" id="modal-count"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <aside class="panel" id="history-panel">
+    <header>
+      <h2>Lịch sử chuyển điểm</h2>
+      <button type="button" id="btn-close-history" aria-label="Đóng">×</button>
+    </header>
+    <div class="list" id="history-list"></div>
+  </aside>
+
+  <script src="./assets/app.js"></script>
+</body>
+</html>

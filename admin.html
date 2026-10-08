@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin duyệt chuyển điểm GG88</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <span class="brand-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h7l-1 8 10-12h-7l0-8z" fill="white"/></svg>
+      </span>
+      <span>
+        <div class="brand-name">Admin chuyển điểm GG88</div>
+        <div class="brand-sub">Duyệt thì mới chuyển</div>
+      </span>
+    </a>
+    <div class="top-actions">
+      <a class="btn-dark" href="./">Về trang chuyển</a>
+      <button type="button" class="btn-history" id="btn-logout" hidden>Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="stage" id="login-stage">
+    <form class="card admin-card" id="login-form">
+      <div class="wordmark">GG88</div>
+      <h1>Đăng nhập admin</h1>
+      <p class="lead">Chỉ lệnh được bấm Duyệt mới chuyển điểm.</p>
+      <div class="field">
+        <label for="username">Tài khoản</label>
+        <input class="input" id="username" value="admin" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Mật khẩu</label>
+        <input class="input" id="password" type="password" value="admin123" autocomplete="current-password" />
+      </div>
+      <button class="submit ready" type="submit">Đăng nhập</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </main>
+
+  <main class="stage" id="board-stage" hidden>
+    <section class="card admin-wrap">
+      <h1 style="text-align:left">Lệnh chuyển điểm</h1>
+      <p class="admin-note">Bấm Duyệt thì khách thấy thành công. Bấm Từ chối, hoặc không bấm, thì khách báo lỗi và điểm không chuyển.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Nguồn</th>
+              <th>Đến</th>
+              <th>Điểm</th>
+              <th>Trạng thái</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="./assets/admin.js"></script>
+</body>
+</html>
