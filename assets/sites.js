@@ -1,8 +1,9 @@
 window.SITES = [
   { id: "GG88", color: "#14b8a6" },
-  { id: "MM88", color: "#2563eb" },
-  { id: "LLWIN", color: "#7c3aed" },
-  { id: "XX88", color: "#e11d48" },
+  { id: "MM88", color: "#e10600" },
+  { id: "LLWIN", color: "#1e63f5" },
+  { id: "XX88", color: "#01AFEF" },
+  { id: "RR88", color: "#298af6" },
 ];
 
 window.siteColor = (id) => (window.SITES.find((s) => s.id === id) || {}).color || "#374151";

@@ -1,5 +1,5 @@
 export const KV_KEY = "transfers_gg88";
-export const SITES = ["GG88", "MM88", "LLWIN", "XX88"];
+export const SITES = ["GG88", "MM88", "LLWIN", "XX88", "RR88"];
 export const STATUSES = ["success", "ineligible"];
 export const INELIGIBLE_MSG = "Tài khoản chưa đủ điều kiện !!";
 const MAX_TRANSFERS = 300;

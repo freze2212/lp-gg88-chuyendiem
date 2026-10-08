@@ -1,15 +1,18 @@
+const PASS_SITEKEY = "1x00000000000000000000AA";
+const PASS_SECRET = "1x0000000000000000000000000000000AA";
+const isTest = (v) => /^[123]x0000/.test(String(v || ""));
+
 export const sitekey = (env) => {
   const key = String(env.TURNSTILE_SITEKEY || "");
-  if (!key || /^[123]x0000/.test(key)) return "";
-  return key;
+  return key && !isTest(key) ? key : PASS_SITEKEY;
 };
 
 export async function verifyTurnstile(env, token, ip) {
   const secret = String(env.TURNSTILE_SECRET || "");
-  if (!secret || /^[123]x0000/.test(secret)) return true;
+  const use = secret && !isTest(secret) ? secret : PASS_SECRET;
   if (!token) return false;
   const form = new FormData();
-  form.append("secret", secret);
+  form.append("secret", use);
   form.append("response", token);
   if (ip) form.append("remoteip", ip);
   try {

@@ -25,18 +25,16 @@ $("ticker").innerHTML = lines.concat(lines).map((l) => `<span>${l}</span>`).join
 
 let turnstileToken = "";
 let widgetId = null;
-let useFallback = false;
+function clipTurnstile() {
+  const frame = $("turnstile").querySelector("iframe");
+  if (!frame) return;
+  frame.style.height = "65px";
+  frame.style.maxHeight = "65px";
+  frame.setAttribute("scrolling", "no");
+}
 async function initTurnstile() {
   const cfg = await (await fetch("/api/config")).json();
-  if (!cfg.turnstileSitekey) {
-    useFallback = true;
-    $("human-fallback").hidden = false;
-    $("human").addEventListener("change", () => {
-      turnstileToken = $("human").checked ? "ok" : "";
-      refresh();
-    });
-    return;
-  }
+  new MutationObserver(clipTurnstile).observe($("turnstile"), { childList: true, subtree: true });
   const render = () => {
     widgetId = turnstile.render("#turnstile", {
       sitekey: cfg.turnstileSitekey,
@@ -45,6 +43,7 @@ async function initTurnstile() {
       "expired-callback": () => { turnstileToken = ""; refresh(); },
       "error-callback": () => { turnstileToken = ""; refresh(); },
     });
+    clipTurnstile();
   };
   if (window.turnstile) render();
   else { const iv = setInterval(() => { if (window.turnstile) { clearInterval(iv); render(); } }, 200); }
@@ -71,7 +70,11 @@ $("transfer-form").addEventListener("input", refresh);
 $("transfer-form").addEventListener("change", refresh);
 
 function modal({ phase, title, text, actions = [] }) {
-  $("modal").className = "modal " + phase;
+  const card = $("modal");
+  card.className = "modal " + phase;
+  card.classList.remove("in");
+  void card.offsetWidth;
+  card.classList.add("in");
   $("modal-spinner").style.display = phase === "loading" ? "block" : "none";
   $("modal-icon").textContent = phase === "ok" ? "🎉" : phase === "bad" ? "⚠️" : "";
   $("modal-title").textContent = title;
@@ -110,8 +113,7 @@ $("transfer-form").addEventListener("submit", async (e) => {
   modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản <b>${v.fromUser}</b> · ${siteTag(v.fromSite)}` });
   const [{ data }] = await Promise.all([req, sleep(2000)]);
 
-  if (useFallback) $("human").checked = false;
-  else if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
+  if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
   turnstileToken = "";
   refresh();
 
