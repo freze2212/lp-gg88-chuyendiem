@@ -25,16 +25,8 @@ $("ticker").innerHTML = lines.concat(lines).map((l) => `<span>${l}</span>`).join
 
 let turnstileToken = "";
 let widgetId = null;
-function clipTurnstile() {
-  const frame = $("turnstile").querySelector("iframe");
-  if (!frame) return;
-  frame.style.height = "65px";
-  frame.style.maxHeight = "65px";
-  frame.setAttribute("scrolling", "no");
-}
 async function initTurnstile() {
   const cfg = await (await fetch("/api/config")).json();
-  new MutationObserver(clipTurnstile).observe($("turnstile"), { childList: true, subtree: true });
   const render = () => {
     widgetId = turnstile.render("#turnstile", {
       sitekey: cfg.turnstileSitekey,
@@ -43,7 +35,6 @@ async function initTurnstile() {
       "expired-callback": () => { turnstileToken = ""; refresh(); },
       "error-callback": () => { turnstileToken = ""; refresh(); },
     });
-    clipTurnstile();
   };
   if (window.turnstile) render();
   else { const iv = setInterval(() => { if (window.turnstile) { clearInterval(iv); render(); } }, 200); }
