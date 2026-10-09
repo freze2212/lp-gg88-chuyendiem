@@ -332,6 +332,7 @@ body {
 .empty { color: var(--muted); font-size: 14px; }
 
 .admin-wrap { width: min(980px, 100%); }
+[hidden] { display: none !important; }
 .admin-card { width: min(420px, 100%); }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
