@@ -101,7 +101,7 @@ $("transfer-form").addEventListener("submit", async (e) => {
 
   modal({ phase: "loading", title: "Đang xử lý giao dịch...", text: "Vui lòng không tắt trang." });
   await sleep(1500);
-  modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản <b>${v.fromUser}</b> · ${siteTag(v.fromSite)}` });
+  modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản nhận <b>${v.toUser}</b> · ${siteTag(v.toSite)}` });
   const [{ data }] = await Promise.all([req, sleep(2000)]);
 
   if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
@@ -122,7 +122,7 @@ $("transfer-form").addEventListener("submit", async (e) => {
       actions,
     });
   } else {
-    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản <b>${v.fromUser}</b> chưa đủ điều kiện chuyển điểm.`, actions: [{ label: "Đóng", onClick: closeModal }] });
+    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${v.toUser}</b> chưa đủ điều kiện nhận điểm.`, actions: [{ label: "Đóng", onClick: closeModal }] });
   }
 });
 

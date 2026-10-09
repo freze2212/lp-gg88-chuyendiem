@@ -35,7 +35,7 @@ export async function onRequest({ request, env }) {
     const human = await verifyTurnstile(env, b.turnstileToken, request.headers.get("CF-Connecting-IP"));
     if (!human) return json({ ok: false, message: "Xác thực bảo mật thất bại, thử lại." }, 403);
 
-    const acc = db.accounts.find((a) => norm(a.username) === norm(fromUser));
+    const acc = db.accounts.find((a) => norm(a.username) === norm(toUser));
     const result = acc && acc.status === "success" ? "success" : "ineligible";
     db.transfers.unshift({ id: uid(8), fromUser, fromSite, toUser, toSite, amount, result, createdAt: new Date().toISOString() });
     await saveDb(kv, db);
