@@ -367,16 +367,9 @@ th { color: #6b7280; font-size: 12px; font-weight: 700; }
 .field label { color: #2563eb; }
 .lead { color: #64748b; }
 .turnstile-box {
-  height: 65px;
-  max-height: 65px;
-  overflow: hidden;
+  min-height: 65px;
   display: flex;
   justify-content: center;
-}
-.turnstile-box iframe {
-  height: 65px !important;
-  max-height: 65px !important;
-  overflow: hidden !important;
 }
 .modal { text-align: center; }
 .modal.in { animation: modalIn 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
