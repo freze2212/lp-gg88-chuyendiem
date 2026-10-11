@@ -437,3 +437,4 @@ th { color: #6b7280; font-size: 12px; font-weight: 700; }
   .modal.wide { padding: 24px 16px 18px; max-height: calc(100vh - 36px); overflow-y: auto; }
   .vip-note strong { white-space: normal; }
 }
+.vnd { top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
