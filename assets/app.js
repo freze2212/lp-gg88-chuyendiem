@@ -1,26 +1,21 @@
+const BRAND = "GG88";
+const LOGO = "./assets/logo-gg88.png";
 const HISTORY_KEY = "gg88_transfer_history";
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const guest = localStorage.getItem("gg88_guest") || "user" + Math.floor(10000 + Math.random() * 90000);
 localStorage.setItem("gg88_guest", guest);
 $("user-chip").textContent = guest;
 
-fillSiteSelect($("from-site"), "GG88");
-fillSiteSelect($("to-site"), "GG88");
+fillSiteSelect($("from-site"), BRAND);
+fillSiteSelect($("to-site"), BRAND);
 
-let redirectUrl = "";
-fetch("/domains.json").then((r) => r.json()).then((dj) => {
-  const h = location.hostname.toLowerCase().replace(/^www\./, "");
-  const e = dj[h] || dj["www." + h];
-  const t = e && (e.main_url || e.url || (typeof e === "string" ? e : ""));
-  if (t) redirectUrl = t;
-}).catch(() => {});
-
-const lines = ["⚡ <b>duyloi204</b> vừa nhận 2.000.000 VNĐ", "💎 <b>hoang123</b> vừa chuyển 100.000 VNĐ",
-  "🔥 <b>ngocanh88</b> vừa nhận 300.000 VNĐ", "🎁 <b>phong161008</b> vừa nạp 500.000 VNĐ",
-  "⚡ <b>tuan9x</b> vừa chuyển 1.000.000 VNĐ sang " + siteTag("GG88")];
+const lines = ["⚡ <b>duyloi204</b> vừa nhận 2.000.000 điểm", "💎 <b>hoang123</b> vừa chuyển 100.000 điểm",
+  "🔥 <b>ngocanh88</b> vừa nhận 300.000 điểm", "🎁 <b>phong161008</b> vừa nạp 500.000 điểm",
+  "⚡ <b>tuan9x</b> vừa chuyển 1.000.000 điểm sang " + siteTag(BRAND)];
 $("ticker").innerHTML = lines.concat(lines).map((l) => `<span>${l}</span>`).join("");
 
 let turnstileToken = "";
@@ -77,16 +72,37 @@ const vipConditions = (brand) => `
     </div>
   </div>`;
 
-function modal({ phase, title, text, extra = "", actions = [] }) {
+const successSheet = (v, balance) => {
+  const now = new Date();
+  const at = `${now.toLocaleTimeString("vi-VN", { hour12: false })} ${now.toLocaleDateString("vi-VN")}`;
+  const row = (label, value, cls = "") => `<div class="ok-row"><span>${label}</span><b class="${cls}">${value}</b></div>`;
+  return `
+    <div class="ok-sheet">
+      <img class="ok-logo" src="${LOGO}" alt="${BRAND}" />
+      <h2 class="ok-title">CHUYỂN THÀNH CÔNG</h2>
+      <div class="ok-date">Ngày chuyển: ${at}</div>
+      <div class="ok-rows">
+        ${row("Tài khoản nguồn:", esc(v.fromUser))}
+        ${row("Tài khoản đến:", esc(v.toUser))}
+        ${row("Số điểm chuyển:", fmt(v.amount), "acc")}
+        ${typeof balance === "number" ? row("Số dư còn lại:", fmt(balance) + " điểm") : ""}
+      </div>
+      <p class="ok-wish">Chúc bạn chơi game vui vẻ!</p>
+    </div>`;
+};
+
+function modal({ phase, title = "", text = "", extra = "", wide = false, actions = [] }) {
   const card = $("modal");
-  card.className = "modal " + phase + (extra ? " wide" : "");
+  card.className = "modal " + phase + (wide ? " wide" : "");
   card.classList.remove("in");
   void card.offsetWidth;
   card.classList.add("in");
   $("modal-spinner").style.display = phase === "loading" ? "block" : "none";
-  $("modal-icon").textContent = phase === "ok" ? "🎉" : phase === "bad" ? "⚠️" : "";
+  $("modal-icon").textContent = phase === "bad" ? "⚠️" : "";
   $("modal-title").textContent = title;
-  $("modal-text").innerHTML = text || "";
+  $("modal-title").hidden = !title;
+  $("modal-text").innerHTML = text;
+  $("modal-text").hidden = !text;
   $("modal-extra").innerHTML = extra;
   $("modal-actions").innerHTML = "";
   for (const a of actions) {
@@ -119,7 +135,7 @@ $("transfer-form").addEventListener("submit", async (e) => {
 
   modal({
     phase: "loading", title: "Vui lòng chờ hệ thống kiểm tra tài khoản...",
-    text: `Tài khoản nhận <b>${v.toUser}</b> · ${siteTag(v.toSite)}<br>Vui lòng không tắt trang.<div class="count" id="wait-count">10s</div>`,
+    text: `Tài khoản nhận <b>${esc(v.toUser)}</b> · ${siteTag(v.toSite)}<br>Vui lòng không tắt trang.<div class="count" id="wait-count">10s</div>`,
   });
   for (let s = 10; s > 0; s--) { $("wait-count").textContent = s + "s"; await sleep(1000); }
   const { data } = await req;
@@ -129,20 +145,14 @@ $("transfer-form").addEventListener("submit", async (e) => {
   refresh();
 
   if (!data.ok) {
-    modal({ phase: "bad", title: "Giao dịch lỗi", text: data.message, actions: [{ label: "Đóng", onClick: closeModal }] });
+    modal({ phase: "bad", title: "Giao dịch lỗi", text: esc(data.message), actions: [{ label: "Đóng", onClick: closeModal }] });
     return;
   }
   remember({ ...v, result: data.result, at: new Date().toISOString() });
   if (data.result === "success") {
-    const actions = [{ label: "Đóng", onClick: closeModal }];
-    if (redirectUrl) actions.unshift({ label: "Vào GG88", cls: "btn-go", href: redirectUrl });
-    modal({
-      phase: "ok", title: "Chúc mừng, chuyển điểm thành công!",
-      text: `<b>${fmt(v.amount)} VNĐ</b><br>${v.fromUser} (${siteTag(v.fromSite)}) → ${v.toUser} (${siteTag(v.toSite)})`,
-      actions,
-    });
+    modal({ phase: "ok", extra: successSheet(v, data.balance), actions: [{ label: "ĐÓNG", cls: "btn-close-big", onClick: closeModal }] });
   } else {
-    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${v.toUser}</b> chưa đủ điều kiện nhận điểm.`, extra: vipConditions("GG88"), actions: [{ label: "Đóng", onClick: closeModal }] });
+    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${esc(v.toUser)}</b> chưa đủ điều kiện nhận điểm.`, extra: vipConditions(BRAND), wide: true, actions: [{ label: "Đóng", onClick: closeModal }] });
   }
 });
 
@@ -150,8 +160,8 @@ $("btn-history").onclick = () => {
   const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
   $("history-list").innerHTML = list.length ? list.map((i) => `
     <div class="hist-item">
-      <strong>${i.fromUser} (${siteTag(i.fromSite)}) → ${i.toUser} (${siteTag(i.toSite)})</strong>
-      <div>${fmt(i.amount)} VNĐ</div>
+      <strong>${esc(i.fromUser)} (${siteTag(i.fromSite)}) → ${esc(i.toUser)} (${siteTag(i.toSite)})</strong>
+      <div>${fmt(i.amount)} điểm</div>
       <span class="tag ${i.result === "success" ? "approved" : "rejected"}">${i.result === "success" ? "Thành công" : "Chưa đủ điều kiện"}</span>
     </div>`).join("") : '<p class="empty">Chưa có giao dịch nào.</p>';
   $("history-panel").classList.add("show");

@@ -32,6 +32,7 @@ export async function loadDb(kv) {
     admin: ADMIN,
     sessions: (p.adminRev === ADMIN_REV && p.sessions) || {},
     accounts: Array.isArray(p.accounts) ? p.accounts : [],
+    sources: Array.isArray(p.sources) ? p.sources : [],
     transfers: Array.isArray(p.transfers) ? p.transfers : [],
   };
 }

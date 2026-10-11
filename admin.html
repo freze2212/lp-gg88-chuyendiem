@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin chuyển điểm GG88</title>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/app.css?v=9" />
+  <link rel="stylesheet" href="./assets/app.css?v=12" />
   <link rel="icon" type="image/png" href="./assets/logo-gg88.png" />
 </head>
 <body>
@@ -40,12 +40,13 @@
   <main class="stage" id="board-stage" hidden>
     <section class="card admin-wrap">
       <div class="tabs">
-        <button type="button" class="on" data-tab="accounts">Tài khoản</button>
+        <button type="button" class="on" data-tab="accounts">Tài khoản nhận</button>
+        <button type="button" data-tab="sources">Tài khoản nguồn</button>
         <button type="button" data-tab="transfers">Lịch sử chuyển</button>
       </div>
 
       <div id="tab-accounts">
-        <p class="admin-note">Tạo tài khoản trước. Trạng thái <b style="color:#15803d">Thành công</b> thì khách chuyển điểm tới đúng tài khoản nhận này sẽ thành công (tài khoản nguồn nhập gì cũng được). Không có trong danh sách, hoặc trạng thái <b style="color:#dc2626">Chưa đủ điều kiện</b>, thì khách bị báo lỗi.</p>
+        <p class="admin-note">Tạo tài khoản trước. Trạng thái <b style="color:#15803d">Thành công</b> thì khách chuyển điểm tới đúng tài khoản nhận này sẽ thành công (số dư tài khoản nguồn quản lý ở tab <b>Tài khoản nguồn</b>). Không có trong danh sách, hoặc trạng thái <b style="color:#dc2626">Chưa đủ điều kiện</b>, thì khách bị báo lỗi.</p>
         <form class="add-row" id="add-form">
           <input class="input" id="new-user" placeholder="Tên tài khoản" maxlength="40" />
           <select class="select" id="new-status">
@@ -62,10 +63,25 @@
         </div>
       </div>
 
+      <div id="tab-sources" hidden>
+        <p class="admin-note">Tài khoản nguồn có trong danh sách sẽ bị <b>trừ số dư</b> mỗi lần chuyển thành công, và báo lỗi nếu chuyển quá số dư. Tài khoản nguồn không có trong danh sách thì chuyển tự do, không hiện số dư.</p>
+        <form class="add-row" id="src-form">
+          <input class="input" id="src-user" placeholder="Tên tài khoản nguồn" maxlength="40" />
+          <input class="input" id="src-balance" type="number" min="0" step="1" placeholder="Số dư (điểm)" />
+          <button type="submit">+ Thêm</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tài khoản nguồn</th><th>Số dư (điểm)</th><th>Ngày tạo</th><th></th></tr></thead>
+            <tbody id="src-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="tab-transfers" hidden>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Thời gian</th><th>Nguồn</th><th>Đến</th><th>Điểm</th><th>Kết quả</th></tr></thead>
+            <thead><tr><th>Thời gian</th><th>Nguồn</th><th>Đến</th><th>Điểm</th><th>Số dư còn</th><th>Kết quả</th></tr></thead>
             <tbody id="tx-rows"></tbody>
           </table>
         </div>
@@ -74,6 +90,6 @@
   </main>
 
   <script src="./assets/sites.js?v=4"></script>
-  <script src="./assets/admin.js?v=3"></script>
+  <script src="./assets/admin.js?v=4"></script>
 </body>
 </html>

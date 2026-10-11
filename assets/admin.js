@@ -48,10 +48,52 @@ async function loadTransfers() {
         <td>${esc(t.fromUser)}<br>${siteTag(t.fromSite)}</td>
         <td>${esc(t.toUser)}<br>${siteTag(t.toSite)}</td>
         <td>${fmt(t.amount)}</td>
+        <td>${typeof t.balance === "number" ? fmt(t.balance) : "—"}</td>
         <td><span class="tag ${t.result === "success" ? "approved" : "rejected"}">${t.result === "success" ? "Thành công" : "Chưa đủ điều kiện"}</span></td>
       </tr>`).join("")
-    : '<tr><td colspan="5">Chưa có giao dịch.</td></tr>';
+    : '<tr><td colspan="6">Chưa có giao dịch.</td></tr>';
 }
+
+async function loadSources() {
+  const d = await api("/api/sources");
+  $("src-rows").innerHTML = d.sources.length
+    ? d.sources.map((s) => `<tr>
+        <td><b>${esc(s.username)}</b></td>
+        <td><div class="balance-edit"><input class="input" type="number" min="0" step="1" value="${s.balance}" data-bal="${s.id}" /><button class="btn-ok" data-save="${s.id}">Lưu</button></div></td>
+        <td>${when(s.createdAt)}</td>
+        <td><button class="btn-no" data-src-del="${s.id}">Xoá</button></td>
+      </tr>`).join("")
+    : '<tr><td colspan="4">Chưa có tài khoản nguồn. Thêm ở trên.</td></tr>';
+}
+
+$("src-rows").addEventListener("click", async (e) => {
+  const save = e.target.closest("button[data-save]");
+  const del = e.target.closest("button[data-src-del]");
+  try {
+    if (save) {
+      const balance = Number(document.querySelector(`input[data-bal="${save.dataset.save}"]`).value);
+      await api(`/api/sources/${save.dataset.save}/balance`, { balance });
+      save.textContent = "Đã lưu";
+      setTimeout(() => { save.textContent = "Lưu"; }, 1200);
+    } else if (del) {
+      if (!confirm("Xoá tài khoản nguồn này?")) return;
+      await api(`/api/sources/${del.dataset.srcDel}/delete`, {});
+      await loadSources();
+    }
+  } catch (err) { alert(err.message); }
+});
+
+$("src-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = $("src-user").value.trim();
+  if (!username) return;
+  try {
+    await api("/api/sources", { username, balance: Number($("src-balance").value) });
+    $("src-user").value = "";
+    $("src-balance").value = "";
+    await loadSources();
+  } catch (err) { alert(err.message); }
+});
 
 $("acc-rows").addEventListener("change", async (e) => {
   const sel = e.target.closest("select[data-id]");
@@ -82,10 +124,10 @@ $("add-form").addEventListener("submit", async (e) => {
 document.querySelectorAll(".tabs button").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === btn));
-    const accounts = btn.dataset.tab === "accounts";
-    $("tab-accounts").hidden = !accounts;
-    $("tab-transfers").hidden = accounts;
-    if (!accounts) loadTransfers().catch((err) => alert(err.message));
+    const tab = btn.dataset.tab;
+    for (const t of ["accounts", "sources", "transfers"]) $("tab-" + t).hidden = t !== tab;
+    const load = { accounts: loadAccounts, sources: loadSources, transfers: loadTransfers }[tab];
+    load().catch((err) => alert(err.message));
   });
 });
 

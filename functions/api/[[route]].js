@@ -1,6 +1,8 @@
 import { SITES, STATUSES, INELIGIBLE_MSG, json, uid, norm, readBody, loadDb, saveDb, isAdmin } from "../_lib/store.js";
 import { sitekey, verifyTurnstile } from "../_lib/turnstile.js";
 
+const toBalance = (v) => Math.max(0, Math.floor(Number(v) || 0));
+
 export async function onRequest({ request, env }) {
   const path = new URL(request.url).pathname.replace(/\/+$/, "");
   const method = request.method;
@@ -35,15 +37,21 @@ export async function onRequest({ request, env }) {
     const human = await verifyTurnstile(env, b.turnstileToken, request.headers.get("CF-Connecting-IP"));
     if (!human) return json({ ok: false, message: "Xác thực bảo mật thất bại, thử lại." }, 403);
 
+    const src = db.sources.find((s) => norm(s.username) === norm(fromUser));
+    if (src && amount > src.balance) {
+      return json({ ok: false, message: `Số dư tài khoản nguồn không đủ (còn ${src.balance.toLocaleString("vi-VN")} điểm).` }, 400);
+    }
     const acc = db.accounts.find((a) => norm(a.username) === norm(toUser));
     const result = acc && acc.status === "success" ? "success" : "ineligible";
-    db.transfers.unshift({ id: uid(8), fromUser, fromSite, toUser, toSite, amount, result, createdAt: new Date().toISOString() });
+    if (result === "success" && src) src.balance -= amount;
+    const balance = src ? src.balance : undefined;
+    db.transfers.unshift({ id: uid(8), fromUser, fromSite, toUser, toSite, amount, result, balance, createdAt: new Date().toISOString() });
     await saveDb(kv, db);
     return json({
       ok: true,
       result,
       message: result === "success" ? "Chúc mừng, chuyển điểm thành công!" : INELIGIBLE_MSG,
-      fromUser, fromSite, toUser, toSite, amount,
+      fromUser, fromSite, toUser, toSite, amount, balance,
     });
   }
 
@@ -75,6 +83,30 @@ export async function onRequest({ request, env }) {
     }
     await saveDb(kv, db);
     return json({ ok: true, accounts: db.accounts });
+  }
+
+  if (path === "/api/sources" && method === "GET") return json({ ok: true, sources: db.sources });
+
+  if (path === "/api/sources" && method === "POST") {
+    const b = await readBody(request);
+    const username = String(b.username || "").trim().slice(0, 40);
+    if (!username) return json({ ok: false, message: "Nhập tên tài khoản nguồn." }, 400);
+    const balance = toBalance(b.balance);
+    const found = db.sources.find((s) => norm(s.username) === norm(username));
+    if (found) found.balance = balance;
+    else db.sources.unshift({ id: uid(6), username, balance, createdAt: new Date().toISOString() });
+    await saveDb(kv, db);
+    return json({ ok: true, sources: db.sources });
+  }
+
+  const sm = path.match(/^\/api\/sources\/([a-f0-9]+)\/(balance|delete)$/);
+  if (sm && method === "POST") {
+    const src = db.sources.find((s) => s.id === sm[1]);
+    if (!src) return json({ ok: false, message: "Không tìm thấy tài khoản nguồn." }, 404);
+    if (sm[2] === "delete") db.sources = db.sources.filter((s) => s.id !== src.id);
+    else src.balance = toBalance((await readBody(request)).balance);
+    await saveDb(kv, db);
+    return json({ ok: true, sources: db.sources });
   }
 
   if (path === "/api/transfers" && method === "GET") return json({ ok: true, transfers: db.transfers });
