@@ -75,21 +75,60 @@ const vipConditions = (brand) => `
 const successSheet = (v, balance) => {
   const now = new Date();
   const at = `${now.toLocaleTimeString("vi-VN", { hour12: false })} ${now.toLocaleDateString("vi-VN")}`;
-  const row = (label, value, cls = "") => `<div class="ok-row"><span>${label}</span><b class="${cls}">${value}</b></div>`;
+  const row = (icon, label, value, cls = "") => `<div class="ok-row"><span><i>${icon}</i>${label}</span><b class="${cls}">${value}</b></div>`;
   return `
     <div class="ok-sheet">
       <img class="ok-logo" src="${LOGO}" alt="${BRAND}" />
+      <div class="ok-check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
       <h2 class="ok-title">CHUYỂN THÀNH CÔNG</h2>
       <div class="ok-date">Ngày chuyển: ${at}</div>
       <div class="ok-rows">
-        ${row("Tài khoản nguồn:", esc(v.fromUser))}
-        ${row("Tài khoản đến:", esc(v.toUser))}
-        ${row("Số điểm chuyển:", fmt(v.amount), "acc")}
-        ${typeof balance === "number" ? row("Số dư còn lại:", fmt(balance) + " điểm") : ""}
+        ${row("👤", "Tài khoản nguồn:", esc(v.fromUser))}
+        ${row("🎯", "Tài khoản đến:", esc(v.toUser))}
+        ${row("💎", "Số điểm chuyển:", fmt(v.amount), "acc")}
+        ${typeof balance === "number" ? row("💰", "Số dư còn lại:", fmt(balance) + " điểm") : ""}
       </div>
-      <p class="ok-wish">Chúc bạn chơi game vui vẻ!</p>
+      <p class="ok-wish"><span class="wave">🎉</span> Chúc bạn chơi game vui vẻ! <span class="wave">🎮</span></p>
     </div>`;
 };
+
+function celebrate() {
+  const card = $("modal");
+  card.querySelectorAll(".fx").forEach((n) => n.remove());
+  const brand = getComputedStyle(card).getPropertyValue("--brand").trim() || "#3b82f6";
+  const colors = ["#f43f5e", "#f59e0b", "#22c55e", "#a855f7", "#38bdf8", brand];
+  const fx = document.createElement("div");
+  fx.className = "fx";
+  const add = (cls, css) => { const n = document.createElement("i"); n.className = cls; n.style.cssText = css; fx.appendChild(n); };
+  [[18, 20, 0], [82, 16, 300], [50, 6, 650]].forEach(([x, y, delay]) => {
+    for (let i = 0; i < 14; i++) {
+      add("spark", `left:${x}%;top:${y}%;--a:${(i * 360) / 14}deg;--d:${45 + Math.random() * 35}px;background:${colors[i % colors.length]};animation-delay:${delay}ms`);
+    }
+  });
+  for (let i = 0; i < 36; i++) {
+    add("confetti", `left:${Math.random() * 100}%;--x:${Math.random() * 80 - 40}px;--r:${Math.random() * 720 - 360}deg;background:${colors[i % colors.length]};animation-delay:${Math.random() * 700}ms`);
+  }
+  card.appendChild(fx);
+  setTimeout(() => fx.remove(), 3600);
+}
+
+let balTimer = 0;
+let balSeq = 0;
+async function showSourceBalance() {
+  const user = $("from-user").value.trim();
+  const box = $("src-balance");
+  const seq = ++balSeq;
+  if (!user) { box.hidden = true; return; }
+  try {
+    const d = await (await fetch(`/api/source-balance?user=${encodeURIComponent(user)}`)).json();
+    if (seq !== balSeq) return;
+    if (d.ok && typeof d.balance === "number") {
+      box.innerHTML = `💰 Số dư khả dụng: <b>${fmt(d.balance)}</b> điểm`;
+      box.hidden = false;
+    } else box.hidden = true;
+  } catch { if (seq === balSeq) box.hidden = true; }
+}
+$("from-user").addEventListener("input", () => { clearTimeout(balTimer); balTimer = setTimeout(showSourceBalance, 400); });
 
 function modal({ phase, title = "", text = "", extra = "", wide = false, actions = [] }) {
   const card = $("modal");
@@ -151,6 +190,8 @@ $("transfer-form").addEventListener("submit", async (e) => {
   remember({ ...v, result: data.result, at: new Date().toISOString() });
   if (data.result === "success") {
     modal({ phase: "ok", extra: successSheet(v, data.balance), actions: [{ label: "ĐÓNG", cls: "btn-close-big", onClick: closeModal }] });
+    celebrate();
+    showSourceBalance();
   } else {
     modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${esc(v.toUser)}</b> chưa đủ điều kiện nhận điểm.`, extra: vipConditions(BRAND), wide: true, actions: [{ label: "Đóng", onClick: closeModal }] });
   }

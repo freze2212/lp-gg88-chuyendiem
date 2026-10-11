@@ -13,6 +13,12 @@ export async function onRequest({ request, env }) {
 
   const db = await loadDb(kv);
 
+  if (path === "/api/source-balance" && method === "GET") {
+    const user = norm(new URL(request.url).searchParams.get("user"));
+    const src = user ? db.sources.find((s) => norm(s.username) === user) : null;
+    return json({ ok: true, found: !!src, balance: src ? src.balance : null });
+  }
+
   if (path === "/api/login" && method === "POST") {
     const b = await readBody(request);
     if (String(b.username || "").trim() !== db.admin.username || String(b.password || "") !== db.admin.password) {

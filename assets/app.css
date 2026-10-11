@@ -464,3 +464,47 @@ th { color: #6b7280; font-size: 12px; font-weight: 700; }
 .balance-edit button { border: 0; border-radius: 8px; padding: 7px 12px; color: #fff; font: inherit; font-weight: 700; font-size: 12px; cursor: pointer; }
 #tab-sources .add-row { grid-template-columns: 1fr 160px 110px; }
 @media (max-width: 640px) { #tab-sources .add-row { grid-template-columns: 1fr; } }
+/* hiệu ứng popup thành công + số dư nguồn */
+.modal.ok { position: relative; overflow: hidden; }
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.fx .spark { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; opacity: 0; animation: fxSpark 0.95s ease-out forwards; }
+.fx .confetti { position: absolute; top: -14px; width: 7px; height: 12px; border-radius: 2px; opacity: 0; animation: fxConfetti 2.6s ease-in forwards; }
+@keyframes fxSpark {
+  0% { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.2); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) scale(0.3); }
+}
+@keyframes fxConfetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--x), 640px) rotate(var(--r)); }
+}
+.ok-check {
+  position: relative; width: 58px; height: 58px; margin: 0 auto 10px; border-radius: 50%;
+  display: grid; place-items: center; background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  box-shadow: 0 10px 22px -8px var(--brand); animation: okPop 0.55s 0.1s both cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ok-check::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--brand);
+  animation: okRing 1.6s 0.4s ease-out infinite;
+}
+.ok-check svg { width: 30px; height: 30px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ok-check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: okDraw 0.45s 0.45s ease-out forwards; }
+@keyframes okPop { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: none; } }
+@keyframes okRing { from { opacity: 0.7; transform: scale(1); } to { opacity: 0; transform: scale(1.6); } }
+@keyframes okDraw { to { stroke-dashoffset: 0; } }
+.ok-row { animation: okRow 0.45s both ease-out; }
+.ok-row:nth-child(1) { animation-delay: 0.35s; }
+.ok-row:nth-child(2) { animation-delay: 0.45s; }
+.ok-row:nth-child(3) { animation-delay: 0.55s; }
+.ok-row:nth-child(4) { animation-delay: 0.65s; }
+@keyframes okRow { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ok-row span i { font-style: normal; margin-right: 6px; }
+.ok-wish { font-weight: 700; }
+.ok-wish .wave { display: inline-block; animation: okWave 1.4s ease-in-out infinite; }
+.ok-wish .wave:last-child { animation-delay: 0.7s; }
+@keyframes okWave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg) scale(1.1); } 75% { transform: rotate(14deg) scale(1.1); } }
+.src-balance {
+  margin-top: 8px; padding: 8px 12px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+  color: #0f766e; background: #f0fdfa; border: 1px solid #99f6e4; animation: okRow 0.3s ease-out;
+}
+.src-balance b { font-weight: 900; font-size: 15px; }
