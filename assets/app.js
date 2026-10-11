@@ -117,10 +117,12 @@ $("transfer-form").addEventListener("submit", async (e) => {
     body: JSON.stringify({ ...v, turnstileToken }),
   }).then(async (r) => ({ status: r.status, data: await r.json() })).catch(() => ({ status: 0, data: { ok: false, message: "Mất kết nối, thử lại." } }));
 
-  modal({ phase: "loading", title: "Đang xử lý giao dịch...", text: "Vui lòng không tắt trang." });
-  await sleep(1500);
-  modal({ phase: "loading", title: "Đang kiểm tra tài khoản...", text: `Tài khoản nhận <b>${v.toUser}</b> · ${siteTag(v.toSite)}` });
-  const [{ data }] = await Promise.all([req, sleep(2000)]);
+  modal({
+    phase: "loading", title: "Vui lòng chờ hệ thống kiểm tra tài khoản...",
+    text: `Tài khoản nhận <b>${v.toUser}</b> · ${siteTag(v.toSite)}<br>Vui lòng không tắt trang.<div class="count" id="wait-count">10s</div>`,
+  });
+  for (let s = 10; s > 0; s--) { $("wait-count").textContent = s + "s"; await sleep(1000); }
+  const { data } = await req;
 
   if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
   turnstileToken = "";
