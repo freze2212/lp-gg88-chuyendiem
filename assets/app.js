@@ -7,7 +7,7 @@ const guest = localStorage.getItem("gg88_guest") || "user" + Math.floor(10000 + 
 localStorage.setItem("gg88_guest", guest);
 $("user-chip").textContent = guest;
 
-fillSiteSelect($("from-site"));
+fillSiteSelect($("from-site"), "GG88");
 fillSiteSelect($("to-site"), "GG88");
 
 let redirectUrl = "";
