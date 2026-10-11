@@ -174,9 +174,9 @@ $("transfer-form").addEventListener("submit", async (e) => {
 
   modal({
     phase: "loading", title: "Vui lòng chờ hệ thống kiểm tra tài khoản...",
-    text: `Tài khoản nhận <b>${esc(v.toUser)}</b> · ${siteTag(v.toSite)}<br>Vui lòng không tắt trang.<div class="count" id="wait-count">10s</div>`,
+    text: `Tài khoản nhận <b>${esc(v.toUser)}</b> · ${siteTag(v.toSite)}<br>Vui lòng không tắt trang.<div class="count" id="wait-count">3s</div>`,
   });
-  for (let s = 10; s > 0; s--) { $("wait-count").textContent = s + "s"; await sleep(1000); }
+  for (let s = 3; s > 0; s--) { $("wait-count").textContent = s + "s"; await sleep(1000); }
   const { data } = await req;
 
   if (window.turnstile && widgetId !== null) turnstile.reset(widgetId);
