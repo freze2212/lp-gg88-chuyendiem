@@ -60,9 +60,26 @@ function refresh() {
 $("transfer-form").addEventListener("input", refresh);
 $("transfer-form").addEventListener("change", refresh);
 
-function modal({ phase, title, text, actions = [] }) {
+const vipConditions = (brand) => `
+  <div class="vip-cond">
+    <div class="vip-head">
+      <span class="vip-crown">👑</span>
+      <div>ĐIỀU KIỆN CHUYỂN VIP SANG <b>${brand}</b><small>& KÍCH HOẠT TÀI KHOẢN</small></div>
+    </div>
+    <ul class="vip-list">
+      <li><span class="vip-num">1</span><div><b>NẠP TRÊN 5 LẦN</b><em>Không bắt buộc nhiều hay ít</em></div></li>
+      <li><span class="vip-num">2</span><div>NẠP TỪ <mark>1M</mark> – CƯỢC <mark>15M</mark><em>Tổng nạp tối thiểu 1 triệu, tổng cược 15 triệu</em></div></li>
+    </ul>
+    <div class="vip-note">
+      <span>💡</span>
+      <div>Có lãi <b>rút ra nạp lại</b> vẫn được tính tổng nạp. Đạt <b>nạp 1M – cược trên 15M</b> sẽ được
+      <strong>DUYỆT NHANH CHÓNG TRONG NGÀY</strong> để tài khoản có thể chuyển VIP sang <b>${brand}</b>.</div>
+    </div>
+  </div>`;
+
+function modal({ phase, title, text, extra = "", actions = [] }) {
   const card = $("modal");
-  card.className = "modal " + phase;
+  card.className = "modal " + phase + (extra ? " wide" : "");
   card.classList.remove("in");
   void card.offsetWidth;
   card.classList.add("in");
@@ -70,6 +87,7 @@ function modal({ phase, title, text, actions = [] }) {
   $("modal-icon").textContent = phase === "ok" ? "🎉" : phase === "bad" ? "⚠️" : "";
   $("modal-title").textContent = title;
   $("modal-text").innerHTML = text || "";
+  $("modal-extra").innerHTML = extra;
   $("modal-actions").innerHTML = "";
   for (const a of actions) {
     const el = document.createElement(a.href ? "a" : "button");
@@ -122,7 +140,7 @@ $("transfer-form").addEventListener("submit", async (e) => {
       actions,
     });
   } else {
-    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${v.toUser}</b> chưa đủ điều kiện nhận điểm.`, actions: [{ label: "Đóng", onClick: closeModal }] });
+    modal({ phase: "bad", title: "Tài khoản chưa đủ điều kiện !!", text: `Tài khoản nhận <b>${v.toUser}</b> chưa đủ điều kiện nhận điểm.`, extra: vipConditions("GG88"), actions: [{ label: "Đóng", onClick: closeModal }] });
   }
 });
 
